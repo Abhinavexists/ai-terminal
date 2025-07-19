@@ -1,33 +1,52 @@
-import os
-import google.generativeai as genai
-from dotenv import load_dotenv
+# import re
+# import json
+# from urllib3 import response
+from gemini import model
+from executor import command_response
+# from google.protobuf.json_format import MessageToDict
 
-load_dotenv()
+SYSTEM_PROMPT = """
+You are a terminal assistant. Given a user request in natural language, output a JSON object with the following structure:
 
-genai.configure(api_key = os.getenv("GEMINI_API_KEY"))  # type: ignore
-model = genai.GenerativeModel("gemini-2.5-flash") # type: ignore
+{
+  "command": "<shell_command>",
+  "explanation": "<brief explanation>"
+}
 
-def clean_output(output: str):
-    if not output:
-        return ""
-    return (
-        output.replace("```bash", "").replace("```", "").strip()
+Ensure your response is ONLY the JSON object, no extra text or formatting.
+"""
+
+def commands(user_input: str) -> command_response:
+    response = model.generate_content(
+        f"Convert this into a shell command: {user_input}",
     )
-
-def commands(prompt: str) -> str:
-    instruction = ("You are a Linux shell assistant. Convert user input into a single valid shell command. "
-                  "If the input is too vague or meaningless, respond with 'Please clarify your request.' "
-                  "Only return the command. Do not include explanations, markdown or code blocks.")
     
-    try:
-      response  = model.generate_content([instruction, prompt])
+    if response.candidates:
+        for part in response.candidates[0].content.parts:
+            # if part.function_call.args:  -> Convert _StructValue or ListValue (existance of protobuf value)
+            if hasattr(part, "function_call") and part.function_call.args:
+                # args = part.function_call.args
+                args = part.function_call.args
+                return command_response(**args) # type: ignore (cursor false negative)
 
-      # DEBUG: Show raw output
-      raw = response.text
-      print(f"[dim]Raw response:[/dim] {repr(raw)}")
+    raise ValueError(f"Failed to get tool call response: {response}")
 
-      cleaned = clean_output(raw)
-      return cleaned if cleaned else "Please clarify your request."
-    
-    except Exception as e:     
-      return f"Error: {e}"
+# def commands(user_input: str) -> command_response:
+#     prompt = f"{SYSTEM_PROMPT}\n\nUser request: {user_input}"
+
+#     response = model.generate_content(prompt)
+
+#     if response.text:
+#         try:
+#             response_data = json.loads(response.text.strip())
+#             return command_response(**response_data)
+#         except json.JSONDecodeError:
+#             json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+#             if json_match:
+#                 try:
+#                     response_data = json.loads(json_match.group())
+#                     return command_response(**response_data)
+#                 except json.JSONDecodeError:
+#                     pass
+
+#     raise ValueError(f"Failed to get tool call response: {response}")

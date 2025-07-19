@@ -1,5 +1,10 @@
 import subprocess
 from rich import print
+from pydantic import BaseModel
+
+class command_response(BaseModel):
+    command: str
+    explanation: str
 
 def run_command(command: str):
     try:
