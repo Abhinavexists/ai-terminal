@@ -37,6 +37,14 @@ def main():
         if user_input.lower() in {"exit", "quit"}:
             break
 
+        output, success = run_command(user_input)
+        print(output)
+
+        if success:
+            save_command(user_input)
+            previous_cmds.append(user_input)
+            continue
+
         try:
             result: command_response = commands(user_input)
             print(f"\n[cyan]Suggested Command:[/cyan] {result.command}")
