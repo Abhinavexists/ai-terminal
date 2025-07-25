@@ -1,9 +1,10 @@
+import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
 load_dotenv()
-client = genai.Client(api_key="GEMINI_API_KEY")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Define your function as a Tool declaration
 # tools = [
@@ -53,10 +54,10 @@ generate_command_function = {
 tools = types.Tool(function_declarations=[generate_command_function])
 config = types.GenerateContentConfig(tools=[tools])
 
-response = client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents="Suggest a grep command to find 'error' entries and explain.",
-    config=config
-)
+# response = client.models.generate_content(
+#     model="gemini-2.5-flash",
+#     contents="Suggest a grep command to find 'error' entries and explain.",
+#     config=config
+# )
 
-print(response.text)
+# print(response.text)

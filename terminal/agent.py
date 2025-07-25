@@ -1,7 +1,7 @@
 # import re
 # import json
 # from urllib3 import response
-from gemini import model
+from gemini import client, tools, config
 from executor import command_response
 # from google.protobuf.json_format import MessageToDict
 
@@ -13,23 +13,25 @@ You are a terminal assistant. Given a user request in natural language, output a
   "explanation": "<brief explanation>"
 }
 
-Rules:
-1. Only output the JSON object, with no extra commentary or formatting.
-2. If the input is a valid shell command that failed (e.g., 'command not found'), suggest a way to install it or offer an appropriate alternative command.
-3. If the input is clearly a shell command (like 'htop', 'neofetch', etc.), do not just echo the same command back — check if it might require installation.
-4. If the input is ambiguous or unclear, interpret it as a natural language request and generate an appropriate command.
-5. Always explain what the command does in simple terms.
+Your job is to translate natural language into appropriate shell commands. Ensure your response is ONLY the JSON object, with no extra text or formatting.
+
+Additional Instructions:
+- If the user requests a command that is not installed (e.g., `htop`, `neofetch`), suggest the appropriate install command (e.g., `sudo apt-get install htop`) instead of the missing command.
+- Use common defaults: assume Debian-based Linux (like Ubuntu) and use `apt-get` for installation unless specified otherwise.
+- Only suggest direct shell commands, not Python or other scripts.
 """
 
 def commands(user_input: str) -> command_response:
-    response = model.generate_content(
-        f"Convert this into a shell command: {user_input}",
+    response = client.models.generate_content(
+        contents= f"Convert this into a shell command: {user_input}",
+        model='gemini-2.5-flash',
+        config=config,
     )
     
-    if response.candidates:
+    if response.candidates and hasattr(response.candidates[0], "content") and response.candidates[0].content and hasattr(response.candidates[0].content, "parts") and response.candidates[0].content.parts:
         for part in response.candidates[0].content.parts:
             # if part.function_call.args:  -> Convert _StructValue or ListValue (existance of protobuf value)
-            if hasattr(part, "function_call") and part.function_call.args:
+            if hasattr(part, "function_call") and part.function_call is not None and hasattr(part.function_call, "args") and part.function_call.args:
                 # args = part.function_call.args
                 args = part.function_call.args
                 return command_response(**args) # type: ignore (cursor false negative)
