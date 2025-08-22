@@ -3,27 +3,36 @@
 # from urllib3 import response
 from gemini import client, tools, config
 from executor import command_response
+from os_info import operating_system
 # from google.protobuf.json_format import MessageToDict
 
-SYSTEM_PROMPT = """
-You are a terminal assistant. Given a user request in natural language, output a JSON object with the following structure:
+def get_system_prompt():
+    os = operating_system.get_os()
+    return f"""You are a terminal assistant. Given a user request in natural language, output a JSON object with the following structure:
 
-{
-  "command": "<shell_command>",
-  "explanation": "<brief explanation>"
-}
+    {{
+    "command": "<shell_command>",
+    "explanation": "<brief explanation>"
+    }}
 
-Your job is to translate natural language into appropriate shell commands. Ensure your response is ONLY the JSON object, with no extra text or formatting.
+    Your job is to translate natural language into appropriate shell commands. Ensure your response is ONLY the JSON object, with no extra text or formatting.
 
-Additional Instructions:
-- If the user requests a command that is not installed (e.g., `htop`, `neofetch`), suggest the appropriate install command (e.g., `sudo apt-get install htop`) instead of the missing command.
-- Use common defaults: assume Debian-based Linux (like Ubuntu) and use `apt-get` for installation unless specified otherwise.
-- Only suggest direct shell commands, not Python or other scripts.
-"""
+    Current System Context:
+    {operating_system.get_context()}
+
+    Additional Instructions:
+    - Use the appropriate package manager for this system: {operating_system.get_os()['package_manager']}
+    - For package installation, use: {operating_system.get_os()['install']} <package_name>
+    - For package updates, use: {operating_system.get_os()['update']}
+    - For package upgrades, use: {operating_system.get_os()['upgrade']}
+    - For package removal, use: {operating_system.get_os()['remove']} <package_name>
+    - Only suggest direct shell commands, not Python or other scripts.
+    - If a command is not available on this system, suggest alternatives or installation methods.
+    """
 
 def commands(user_input: str) -> command_response:
     response = client.models.generate_content(
-        contents= f"Convert this into a shell command: {user_input}",
+        contents= f"{get_system_prompt()}\n\nUser request: {user_input}",
         model='gemini-2.5-flash',
         config=config,
     )
