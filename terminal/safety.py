@@ -18,7 +18,7 @@ class safety_result:
     blocked: bool = False
     suggestions: Optional[List[str]] = None
 
-class command_safety:
+class CommandSafety:
     """Analyzes commands for potential risks and provides warnings."""
     
     CRITICAL_PATTERNS = [
