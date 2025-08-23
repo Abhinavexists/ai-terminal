@@ -6,32 +6,6 @@ from google.genai import types
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Define your function as a Tool declaration
-# tools = [
-#     types.Tool(
-#         function_declarations=[
-#             types.FunctionDeclaration(
-#                 name="generate_command",
-#                 description="Generate a shell command and explain what it does",
-#                 parameters={
-#                     "type": "object",
-#                     "properties": {
-#                         "command": {
-#                             "type": "string",
-#                             "description": "The shell command to execute"
-#                         },
-#                         "explanation": {
-#                             "type": "string",
-#                             "description": "Explanation of what the command does"
-#                         },
-#                     },
-#                     "required": ["command", "explanation"]
-#                 }
-#             )
-#         ]
-#     )
-# ]
-
 generate_command_function = {
                 "name": "generate_command",
                 "description": "Generate a shell command and explain what it does",
@@ -53,11 +27,3 @@ generate_command_function = {
 
 tools = types.Tool(function_declarations=[generate_command_function])
 config = types.GenerateContentConfig(tools=[tools])
-
-# response = client.models.generate_content(
-#     model="gemini-2.5-flash",
-#     contents="Suggest a grep command to find 'error' entries and explain.",
-#     config=config
-# )
-
-# print(response.text)

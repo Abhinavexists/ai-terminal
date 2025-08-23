@@ -3,7 +3,6 @@ import json
 from gemini import client, config
 from executor import CommandResponse
 from os_info import operating_system
-# from google.protobuf.json_format import MessageToDict
 
 def get_system_prompt():
     os = operating_system.get_os()
@@ -69,23 +68,3 @@ def commands(user_input: str, current_dir: str = None) -> CommandResponse:
                     return CommandResponse(**data)
 
     raise ValueError(f"Failed to get tool call response: {response}")
-
-# def commands(user_input: str) -> command_response:
-#     prompt = f"{SYSTEM_PROMPT}\n\nUser request: {user_input}"
-
-#     response = model.generate_content(prompt)
-
-#     if response.text:
-#         try:
-#             response_data = json.loads(response.text.strip())
-#             return command_response(**response_data)
-#         except json.JSONDecodeError:
-#             json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
-#             if json_match:
-#                 try:
-#                     response_data = json.loads(json_match.group())
-#                     return command_response(**response_data)
-#                 except json.JSONDecodeError:
-#                     pass
-
-#     raise ValueError(f"Failed to get tool call response: {response}")
