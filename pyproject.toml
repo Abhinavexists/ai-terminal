@@ -17,4 +17,4 @@ dependencies = [
 ai-terminal = "terminal.cli:main"
 
 [project.urls]
-Repository = "https://github.com/Abhinavexists/ai-enabled-terminal.git"
+Repository = "https://github.com/Abhinavexists/ai-terminal.git"
