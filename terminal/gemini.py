@@ -22,7 +22,7 @@ def get_api_key():
         except:
             pass
     
-    print("\n[bold yellow]Gemini API Key Required[/bold yellow]")
+    print("\n🔑 Gemini API Key Required")
     print("To use AI features, you need a Gemini API key from Google AI Studio.")
     print("Get one at: https://aistudio.google.com/app/apikey")
     print()
@@ -35,13 +35,13 @@ def get_api_key():
                 with open(config_file, 'w') as f:
                     json.dump(config, f)
                 os.chmod(config_file, 0o600)
-                print("[green]API key saved securely![/green]")
+                print("✅ API key saved securely!")
                 return api_key
             except Exception as e:
-                print(f"[red]Failed to save config: {e}[/red]")
+                print(f"❌ Failed to save config: {e}")
                 return api_key
         else:
-            print("[red]Invalid API key. Please try again.[/red]")
+            print("❌ Invalid API key. Please try again.")
 
 api_key = get_api_key()
 client = genai.Client(api_key=api_key)

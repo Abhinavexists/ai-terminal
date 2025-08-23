@@ -167,7 +167,9 @@ def main():
                 if opt == "y":
                     final_cmd = edit_command(final_cmd)
 
-            if check_command_safety(final_cmd):
+            safety_result = CommandSafety().analyse_command(final_cmd)
+            
+            if safety_result.risk_level == RiskLevel.SAFE:
                 print(f"\n[green]Command approved! Executing...[/green]")
                 output, success = run_command(final_cmd, cwd=current_dir)
                 print(output)
@@ -177,8 +179,23 @@ def main():
                     previous_cmds.append(final_cmd)
                 else:
                     print(f"[red]Command failed to execute[/red]")
-            else:
-                print(f"[blue]Command blocked or rejected by user[/blue]")
+            else:   
+                confirm_msg = CommandSafety().get_confirmation_message(safety_result)
+                print(f"\n[bold]{confirm_msg}[/bold]")
+                
+                user_confirm = input("> ").strip()
+                if CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level):
+                    print(f"\n[green]Command approved! Executing...[/green]")
+                    output, success = run_command(final_cmd, cwd=current_dir)
+                    print(output)
+                    
+                    if success:
+                        save_command(final_cmd)
+                        previous_cmds.append(final_cmd)
+                    else:
+                        print(f"[red]Command failed to execute[/red]")
+                else:
+                    print(f"[blue]Command rejected by user[/blue]")
 
         except Exception as e:
             print(f"[red]Error generating suggestion:[/red] {e}")
