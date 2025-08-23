@@ -1,10 +1,9 @@
-from logging import warning
 import re
-from typing import List, Tuple, Optional
-from enum import Enum
+from typing import List, Optional
 from dataclasses import dataclass
+from enum import Enum
 
-class risk_level(Enum):
+class RiskLevel(Enum):
     SAFE = 'safe'
     LOW = 'low'
     MEDIUM = 'medium'
@@ -12,8 +11,8 @@ class risk_level(Enum):
     CRITICAL = 'critical'
 
 @dataclass
-class safety_result:
-    risk_level: risk_level
+class SafetyResult:
+    risk_level: RiskLevel
     warning: List[str]
     blocked: bool = False
     suggestions: Optional[List[str]] = None
@@ -61,87 +60,87 @@ class CommandSafety:
         r'\bgit\s+clean\s+-fd',                  # git force clean
         r'\bmv\s+.*\s+/tmp',                     # moving to tmp
     ]
+    
+    def analyse_command(self, command: str) -> SafetyResult:
+        command = command.strip().lower()
+        warning = []
+        suggestions = []
 
-def analyse_command(self, command: str) -> safety_result:
-    command = command.strip().lower()
-    warning = []
-    suggestions = []
+        for pattern in self.CRITICAL_PATTERNS:
+            if re.search(pattern, command, re.IGNORECASE):
+                warning.append(f"CRITICAL: This command can cause irreversible system damage!")
+                return SafetyResult(
+                    risk_level=RiskLevel.CRITICAL,
+                    warning=warning,
+                    blocked=True,
+                    suggestions=suggestions
+                )
 
-    for pattern in self.CRITICAL_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            warning.append(f"CRITICAL: This command can cause irreversible system damage!")
-            return safety_result(
-                risk_level=risk_level.CRITICAL,
-                warning=warning,
-                blocked=True,
-                suggestions=suggestions
-            )
+        for pattern in self.HIGH_RISK_PATTERNS:
+            if re.search(pattern, command, re.IGNORECASE):
+                warning.append(f"HIGH RISK: This command can cause significant damage or data loss")
+                if "rm -rf" in command:
+                    suggestions.append("Consider using 'trash' or 'mv to backup' instead")
+                if "sudo" in command:
+                    suggestions.append("Double-check you need elevated privileges")
+                return SafetyResult(
+                    risk_level=RiskLevel.HIGH,
+                    warning=warning,
+                    blocked=True,
+                    suggestions=suggestions
+                )
 
-    for pattern in self.HIGH_RISK_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            warning.append(f"HIGH RISK: This command can cause significant damage or data loss")
-            if "rm -rf" in command:
-                suggestions.append("Consider using 'trash' or 'mv to backup' instead")
-            if "sudo" in command:
-                suggestions.append("Double-check you need elevated privileges")
-            return safety_result(
-                risk_level=risk_level.HIGH,
-                warning=warning,
-                blocked=True,
-                suggestions=suggestions
-            )
+        for pattern in self.MEDIUM_RISK_PATTERNS:
+            if re.search(pattern, command, re.IGNORECASE):
+                warning.append(f"MEDIUM RISK: This command can cause significant changes")
+                return SafetyResult(
+                    risk_level=RiskLevel.MEDIUM,
+                    warning=warning,
+                    blocked=False,
+                    suggestions=suggestions
+                )
 
-    for pattern in self.MEDIUM_RISK_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            warning.append(f"CRITICAL: This command can cause irreversible system damage!")
-            return safety_result(
-                risk_level=risk_level.MEDIUM,
-                warning=warning,
-                blocked=True,
-                suggestions=suggestions
-            )
-
-    for pattern in self.LOW_RISK_PATTERN:
-        if re.search(pattern, command, re.IGNORECASE):
-            warning.append(f"CRITICAL: This command can cause irreversible system damage!")
-            return safety_result(
-                risk_level=risk_level.LOW,
-                warning=warning,
-                blocked=True,
-                suggestions=suggestions
-            )
+        for pattern in self.LOW_RISK_PATTERNS:
+            if re.search(pattern, command, re.IGNORECASE):
+                warning.append(f"LOW RISK: This command may cause data loss or changes")
+                return SafetyResult(
+                    risk_level=RiskLevel.LOW,
+                    warning=warning,
+                    blocked=False,
+                    suggestions=suggestions
+                )
         
-    return safety_result(
-        risk_level= risk_level.SAFE,
-        warning=[],
-        suggestions=[]
-    )
-    
-def get_confirmation_message(self, safety_result: safety_result) -> str:
-    """Generate appropriate confirmation message based on risk level."""
-    if safety_result.risk_level == risk_level.CRITICAL:
-        return "BLOCKED: Command is too dangerous to execute"
-    elif safety_result.risk_level == risk_level.HIGH:
-        return "HIGH RISK: Type 'YES' (in caps) to confirm"
-    elif safety_result.risk_level == risk_level.MEDIUM:
-        return "⚡ MEDIUM RISK: Type 'yes' to confirm"
-    elif safety_result.risk_level == risk_level.LOW:
-        return "ℹAre you sure? [y/N]"
-    else:
-        return "Run this command? [y/N]"
+        return SafetyResult(
+            risk_level= RiskLevel.SAFE,
+            warning=[],
+            suggestions=[]
+        )
 
-def validate_confirmation(self, confirmation: str, risk_level: risk_level) -> bool:
-    """Validate user confirmation based on risk level."""
-    confirmation = confirmation.strip()
-    
-    if risk_level == risk_level.CRITICAL:
-        return False  # Never allow critical commands
-    elif risk_level == risk_level.HIGH:
-        return confirmation == "YES"
-    elif risk_level == risk_level.MEDIUM:
-        return confirmation == "yes"
-    elif risk_level == risk_level.LOW:
-        return confirmation.lower() in ["y", "yes"]
-    else:
-        return confirmation.lower() in ["y", "yes"]
+    def get_confirmation_message(self, safety_result: SafetyResult) -> str:
+        """Generate appropriate confirmation message based on risk level."""
+        if safety_result.risk_level == RiskLevel.CRITICAL:
+            return "BLOCKED: Command is too dangerous to execute"
+        elif safety_result.risk_level == RiskLevel.HIGH:
+            return "HIGH RISK: Type 'YES' (in caps) to confirm"
+        elif safety_result.risk_level == RiskLevel.MEDIUM:
+            return "MEDIUM RISK: Type 'yes' to confirm"
+        elif safety_result.risk_level == RiskLevel.LOW:
+            return "Are you sure? [y/N]"
+        else:
+            return "Run this command? [y/N]"
+
+    def validate_confirmation(self, confirmation: str, risk_level: RiskLevel) -> bool:
+        """Validate user confirmation based on risk level."""
+        confirmation = confirmation.strip()
+        
+        if risk_level == RiskLevel.CRITICAL:
+            return False  # Never allow critical commands
+        elif risk_level == RiskLevel.HIGH:
+            return confirmation == "YES"
+        elif risk_level == RiskLevel.MEDIUM:
+            return confirmation == "yes"
+        elif risk_level == RiskLevel.LOW:
+            return confirmation.lower() in ["y", "yes"]
+        else:
+            return confirmation.lower() in ["y", "yes"]
     

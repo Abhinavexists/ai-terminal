@@ -1,7 +1,7 @@
 import os
-from executor import command_response, run_command
+from executor import CommandResponse, run_command
 from agent import commands
-from safety import CommandSafety
+from safety import CommandSafety, RiskLevel
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter
@@ -19,11 +19,11 @@ def save_command(cmd: str):
     with open(HISTORY_FILE, "a") as file:
         file.write(cmd + "\n")
 
-def check_command_safety(command: str) -> bool:
+def check_command_safety(cmd: str) -> bool:
     """Check if a command is safe to execute and get user confirmation if needed."""
-    safety_result = CommandSafety.analyse_command(command)
+    safety_result = CommandSafety().analyse_command(cmd)
     
-    if safety_result.blocked and safety_result.risk_level.value == "critical":
+    if safety_result.blocked and safety_result.risk_level == RiskLevel.CRITICAL:
         print(f"[red]{safety_result.warning[0]}[/red]")
         if safety_result.suggestions:
             print(f"[yellow]Suggestions:[/yellow]")
@@ -41,12 +41,12 @@ def check_command_safety(command: str) -> bool:
             for suggestion in safety_result.suggestions:
                 print(f"  • {suggestion}")
     
-    if safety_result.risk_level.value != "safe":
-        confirm_msg = CommandSafety.get_confirmation_message(safety_result)
+    if safety_result.risk_level != RiskLevel.SAFE:
+        confirm_msg = CommandSafety().get_confirmation_message(safety_result)
         print(f"\n[bold]{confirm_msg}[/bold]")
         
         user_confirm = input("> ").strip()
-        return CommandSafety.validate_confirmation(user_confirm, safety_result.risk_level)
+        return CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level)
     
     return True
 
@@ -83,7 +83,7 @@ def main():
             continue
 
         try:
-            result: command_response = commands(user_input)
+            result: CommandResponse = commands(user_input)
             
             print(f"\n[cyan]Command:[/cyan] {result.command}")
             print(f"[yellow]Explanation:[/yellow] {result.explanation}")

@@ -1,16 +1,20 @@
 import subprocess
-from rich import print
 from pydantic import BaseModel
 
-class command_response(BaseModel):
+class CommandResponse(BaseModel):
     command: str
     explanation: str
 
 def run_command(command: str) -> tuple[str, bool]:
     try:
-        result = subprocess.run(command, shell=True, check=True, text=True)
-        print(f"[green]Command executed successfully.[/green]")
-        return result.stdout, True
+        result = subprocess.run(
+            command,
+            shell=True,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        return result.stdout or "", True
     except subprocess.CalledProcessError as e:
-        print(f"[red]Error while executing:[/red] {e.cmd}")
-        return e.stderr or "", False
+        # Suppress noisy error logs and captured stderr/stdout
+        return (e.stdout or e.stderr or ""), False
