@@ -1,7 +1,20 @@
 [project]
-name = "ai-enabled-terminal"
+name = "ai-terminal"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered terminal assistant"
+authors = [{name = "Abhinav", email = "abhinavkumarsingh2023@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "prompt-toolkit==3.0.51",
+    "rich==14.1.0", 
+    "pydantic==2.11.7",
+    "python-dotenv==1.1.1",
+    "google-genai==1.31.0"
+]
+
+[project.scripts]
+ai-terminal = "terminal.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Abhinavexists/ai-enabled-terminal.git"
