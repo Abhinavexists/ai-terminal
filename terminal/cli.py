@@ -50,6 +50,21 @@ def check_command_safety(cmd: str) -> bool:
     
     return True
 
+def handle_cd(command: str, current_dir: str) -> tuple[bool, str]:
+    parts = command.strip().split()
+    if not parts or parts[0] != "cd":
+        return False, current_dir
+
+    target = parts[1] if len(parts) > 1 else os.path.expanduser("~")
+    target = os.path.expanduser(target)
+    
+    if not os.path.isabs(target):
+        target = os.path.normpath(os.path.join(current_dir, target))
+    if not os.path.isdir(target):
+        print(f"[red]cd: no such directory: {target}[/red]")
+        return True, current_dir
+    return True, target
+
 def main():
     print("[bold green]AI-Enabled Terminal[/bold green]")
     print("[dim]Type your request (type 'exit' to quit)[/dim]\n")
@@ -58,10 +73,12 @@ def main():
     previous_cmds = load_previous_commands()
     session = PromptSession(history=history)
 
+    current_dir = os.getcwd()
+
     while True:
         completer = FuzzyWordCompleter(previous_cmds)
         try:
-            user_input = session.prompt("> ", completer=completer).strip()
+            user_input = session.prompt(f"{current_dir} > ", completer=completer).strip()
         except KeyboardInterrupt:
             print("\n[blue]Use 'exit' to quit[/blue]")
             continue
@@ -74,7 +91,11 @@ def main():
         if not user_input:
             continue
 
-        output, success = run_command(user_input)
+        handled, current_dir = handle_cd(user_input, current_dir)
+        if handled:
+            continue
+
+        output, success = run_command(user_input, cwd=current_dir)
         
         if success:
             print(output)
@@ -90,7 +111,7 @@ def main():
 
             if check_command_safety(result.command):
                 print(f"\n[green]Command approved! Executing...[/green]")
-                output, success = run_command(result.command)
+                output, success = run_command(result.command, cwd=current_dir)
                 print(output)
                 
                 if success:

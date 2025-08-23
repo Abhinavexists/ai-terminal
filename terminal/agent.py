@@ -2,7 +2,7 @@
 # import json
 # from urllib3 import response
 from gemini import client, tools, config
-from executor import command_response
+from executor import CommandResponse
 from os_info import operating_system
 # from google.protobuf.json_format import MessageToDict
 
@@ -30,7 +30,7 @@ def get_system_prompt():
     - If a command is not available on this system, suggest alternatives or installation methods.
     """
 
-def commands(user_input: str) -> command_response:
+def commands(user_input: str) -> CommandResponse:
     response = client.models.generate_content(
         contents= f"{get_system_prompt()}\n\nUser request: {user_input}",
         model='gemini-2.5-flash',
@@ -43,7 +43,7 @@ def commands(user_input: str) -> command_response:
             if hasattr(part, "function_call") and part.function_call is not None and hasattr(part.function_call, "args") and part.function_call.args:
                 # args = part.function_call.args
                 args = part.function_call.args
-                return command_response(**args) # type: ignore (cursor false negative)
+                return CommandResponse(**args) # type: ignore (cursor false negative)
 
     raise ValueError(f"Failed to get tool call response: {response}")
 

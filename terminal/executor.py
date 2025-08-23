@@ -5,7 +5,7 @@ class CommandResponse(BaseModel):
     command: str
     explanation: str
 
-def run_command(command: str) -> tuple[str, bool]:
+def run_command(command: str, cwd: str | None = None) -> tuple[str, bool]:
     try:
         result = subprocess.run(
             command,
@@ -13,6 +13,7 @@ def run_command(command: str) -> tuple[str, bool]:
             check=True,
             text=True,
             capture_output=True,
+            cwd=cwd,
         )
         return result.stdout or "", True
     except subprocess.CalledProcessError as e:
