@@ -1,7 +1,6 @@
-# import re
-# import json
-# from urllib3 import response
-from gemini import client, tools, config
+import re
+import json
+from gemini import client, config
 from executor import CommandResponse
 from os_info import operating_system
 # from google.protobuf.json_format import MessageToDict
@@ -28,11 +27,30 @@ def get_system_prompt():
     - For package removal, use: {operating_system.get_os()['remove']} <package_name>
     - Only suggest direct shell commands, not Python or other scripts.
     - If a command is not available on this system, suggest alternatives or installation methods.
+    - When moving files, consider the current working directory and use relative paths appropriately
+    - Use "." to refer to the current directory and ".." for parent directory
+    - Always verify that source files exist and target directories are valid before suggesting commands
     """
 
-def commands(user_input: str) -> CommandResponse:
+def parse_json(text: str) -> dict | None:
+    """Try to parse JSON from text, handling code fences and other wrappers."""
+    if not text:
+        return None
+    json_match = re.search(r'\{.*\}', text, flags=re.DOTALL)
+    if not json_match:
+        return None
+    try:
+        return json.loads(json_match.group())
+    except json.JSONDecodeError:
+        return None
+
+def commands(user_input: str, current_dir: str = None) -> CommandResponse:
+    prompt = get_system_prompt()
+    if current_dir:
+        prompt += f"\n\nCurrent Working Directory: {current_dir}"
+    
     response = client.models.generate_content(
-        contents= f"{get_system_prompt()}\n\nUser request: {user_input}",
+        contents= f"{prompt}\n\nUser request: {user_input}",
         model='gemini-2.5-flash',
         config=config,
     )
@@ -43,7 +61,12 @@ def commands(user_input: str) -> CommandResponse:
             if hasattr(part, "function_call") and part.function_call is not None and hasattr(part.function_call, "args") and part.function_call.args:
                 # args = part.function_call.args
                 args = part.function_call.args
-                return CommandResponse(**args) # type: ignore (cursor false negative)
+                return CommandResponse(**args) # type: ignore
+            
+            if hasattr(part, "text") and part.text: # parsing JSON from text
+                data = parse_json(part.text)
+                if data and "command" in data and "explanation" in data:
+                    return CommandResponse(**data)
 
     raise ValueError(f"Failed to get tool call response: {response}")
 

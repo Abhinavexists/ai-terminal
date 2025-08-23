@@ -1,7 +1,9 @@
 import os
+import re
 from executor import CommandResponse, run_command
 from agent import commands
 from safety import CommandSafety, RiskLevel
+from commands import shell_commands
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter
@@ -18,6 +20,51 @@ def load_previous_commands():
 def save_command(cmd: str):
     with open(HISTORY_FILE, "a") as file:
         file.write(cmd + "\n")
+
+PLACEHOLDER_PATTERNS = [                                         # regex patterns for placeholders
+    r"<[^>]+>",                                                  # <placeholder>
+    r"\b(old|new)[-_]?(file|filename|path|dir)\b",               # old_file, new_filename
+    r"\b(source|destination)[-_ ]?(file|directory|dir|path)\b",  # source_file, destination_dir
+    r"\bYOUR[_-]?(FILE|PATH|DIR|BRANCH|REPO)\b",                 # YOUR_FILE, YOUR_PATH
+]
+
+def placeholders(cmd: str) -> bool:
+    for pat in PLACEHOLDER_PATTERNS:
+        if re.search(pat, cmd, flags=re.IGNORECASE):
+            return True
+    return False
+
+def shell_command(user_input: str) -> bool:
+    """Check if user input looks like a valid shell command."""
+    input_lower = user_input.lower().strip()
+    words = input_lower.split()
+    
+    if not words:
+        return False
+    
+    first_word = words[0]
+    
+    all_commands = []
+    for category, commands in shell_commands.items():
+        if isinstance(commands, list):
+            all_commands.extend(commands)
+        elif isinstance(commands, dict):
+            for os_commands in commands.values():
+                all_commands.extend(os_commands)
+    
+    if first_word in all_commands:
+        return True
+    
+    if re.match(r'^[./]', first_word) or re.search(r'[|&;<>]', user_input):
+        return True
+    
+    return False
+
+def edit_command(suggested: str) -> str:
+    print(f"[cyan]Current command:[/cyan] {suggested}")
+    print("[magenta]Edit the command (press Enter to keep as is):[/magenta]")
+    edited = input("> ").strip()
+    return edited if edited else suggested
 
 def check_command_safety(cmd: str) -> bool:
     """Check if a command is safe to execute and get user confirmation if needed."""
@@ -95,28 +142,39 @@ def main():
         if handled:
             continue
 
-        output, success = run_command(user_input, cwd=current_dir)
-        
-        if success:
-            print(output)
-            save_command(user_input)
-            previous_cmds.append(user_input)
-            continue
+        if shell_command(user_input):
+            output, success = run_command(user_input, cwd=current_dir)
+            
+            if success:
+                print(output)
+                save_command(user_input)
+                previous_cmds.append(user_input)
+                continue
 
         try:
-            result: CommandResponse = commands(user_input)
+            result: CommandResponse = commands(user_input, current_dir)
             
             print(f"\n[cyan]Command:[/cyan] {result.command}")
             print(f"[yellow]Explanation:[/yellow] {result.explanation}")
 
-            if check_command_safety(result.command):
+            final_cmd = result.command
+            
+            if placeholders(final_cmd):
+                print(f"[yellow]Please edit before execution:[/yellow]")
+                final_cmd = edit_command(final_cmd)
+            else:
+                opt = input("Edit command before executing? [y/N]: ").strip().lower()
+                if opt == "y":
+                    final_cmd = edit_command(final_cmd)
+
+            if check_command_safety(final_cmd):
                 print(f"\n[green]Command approved! Executing...[/green]")
-                output, success = run_command(result.command, cwd=current_dir)
+                output, success = run_command(final_cmd, cwd=current_dir)
                 print(output)
                 
                 if success:
-                    save_command(result.command)
-                    previous_cmds.append(result.command)
+                    save_command(final_cmd)
+                    previous_cmds.append(final_cmd)
                 else:
                     print(f"[red]Command failed to execute[/red]")
             else:
