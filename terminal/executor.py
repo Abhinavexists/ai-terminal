@@ -12,10 +12,8 @@ def run_command(command: str, cwd: str | None = None) -> tuple[str, bool]:
             shell=True,
             check=True,
             text=True,
-            capture_output=True,
             cwd=cwd,
         )
-        return result.stdout or "", True
+        return "Command executed successfully", True
     except subprocess.CalledProcessError as e:
-        # Suppress noisy error logs and captured stderr/stdout
-        return (e.stdout or e.stderr or ""), False
+        return f"Command failed with exit code {e.returncode}", False
