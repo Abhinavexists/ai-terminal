@@ -1,10 +1,50 @@
 import os
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+def get_api_key():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key:
+        return api_key
+    
+    config_file = Path.home() / ".ai_terminal_config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                if config.get("gemini_api_key"):
+                    return config["gemini_api_key"]
+        except:
+            pass
+    
+    print("\n[bold yellow]Gemini API Key Required[/bold yellow]")
+    print("To use AI features, you need a Gemini API key from Google AI Studio.")
+    print("Get one at: https://aistudio.google.com/app/apikey")
+    print()
+    
+    while True:
+        api_key = input("Enter your Gemini API key: ").strip()
+        if api_key and len(api_key) > 10:
+            try:
+                config = {"gemini_api_key": api_key}
+                with open(config_file, 'w') as f:
+                    json.dump(config, f)
+                os.chmod(config_file, 0o600)
+                print("[green]API key saved securely![/green]")
+                return api_key
+            except Exception as e:
+                print(f"[red]Failed to save config: {e}[/red]")
+                return api_key
+        else:
+            print("[red]Invalid API key. Please try again.[/red]")
+
+api_key = get_api_key()
+client = genai.Client(api_key=api_key)
 
 generate_command_function = {
                 "name": "generate_command",
