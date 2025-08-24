@@ -5,42 +5,46 @@ on:
     types: [published]
 
 permissions:
-    contents: read
+  contents: read
 
 jobs:
-    build-and-publish:
-        runs-on: ubuntu-latest
+  build-and-publish:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: Set up Python
-              uses: actions/setup-python@v4
-              with:
-                python-version: 3.12
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
 
-            - name: Install build tools
-              run: |
-                python -m pip install --upgrade pip 
-                pip install build twine
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
 
-            - name: Build package
-              run: python -m build
+      - name: Clean old build artifacts
+        run: |
+          rm -rf dist build *.egg-info
 
-            - name: Verify Package Metadata
-              run: twine check dist/*
+      - name: Build package
+        run: python -m build
 
-            - name: Publish to TestPyPI (prereleases)
-              if: github.event.release.prerelease == true
-              env:
-                TWINE_USERNAME: __token__
-                TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-              run: twine upload --repository testpypi dist/*
+      - name: Verify Package Metadata
+        run: twine check dist/*
+
+      - name: Publish to TestPyPI (prereleases)
+        if: github.event.release.prerelease == true
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: twine upload --repository testpypi dist/*
       
-            - name: Publish to PyPI (stable)
-              if: github.event.release.prerelease == false
-              env:
-                TWINE_USERNAME: __token__
-                TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-              run: twine upload dist/*
+      - name: Publish to PyPI (stable)
+        if: github.event.release.prerelease == false
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*
