@@ -1,9 +1,9 @@
 import os
 import re
-from executor import CommandResponse, run_command
-from agent import commands
-from safety import CommandSafety, RiskLevel
-from commands import shell_commands
+from terminal.executor import CommandResponse, run_command
+from terminal.agent import commands
+from terminal.safety import CommandSafety, RiskLevel
+from terminal.commands import shell_commands
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter

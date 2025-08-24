@@ -1,8 +1,8 @@
 import re
 import json
-from gemini import client, config
-from executor import CommandResponse
-from os_info import operating_system
+from terminal.gemini import client, config
+from terminal.executor import CommandResponse
+from terminal.os_info import operating_system
 
 def get_system_prompt():
     os = operating_system.get_os()
