@@ -49,7 +49,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 
 ### Project Structure
 
-```
+```markdown
 ai-terminal/
 ├── terminal/
 │   ├── cli.py          # Main interactive interface
