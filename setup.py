@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ai-terminal-cli",
-    version="0.1.5",
+    version="0.1.6",
     description="Terminal assistant built as an open source minimal alternative to Warp",
     author="Abhinav",
     author_email="abhinavkumarsingh2023@gmail.com",
