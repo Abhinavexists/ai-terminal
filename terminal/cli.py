@@ -1,14 +1,17 @@
 import os
 import re
-from terminal.executor import CommandResponse, run_command
-from terminal.agent import commands
-from terminal.safety import CommandSafety, RiskLevel
-from terminal.commands import shell_commands
+from terminal.core.executor import CommandResponse, GeneralResponse, run_command
+from terminal.core.agent import process_request
+from terminal.utils.safety import CommandSafety, RiskLevel
+from terminal.utils.commands import shell_commands
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter
 from rich import print
+from rich.console import Console
+from rich.markdown import Markdown
 
+console = Console()
 HISTORY_FILE = os.path.expanduser("~/.terminal_history")
 
 def load_previous_commands():
@@ -21,11 +24,11 @@ def save_command(cmd: str):
     with open(HISTORY_FILE, "a") as file:
         file.write(cmd + "\n")
 
-PLACEHOLDER_PATTERNS = [                                         # regex patterns for placeholders
-    r"<[^>]+>",                                                  # <placeholder>
-    r"\b(old|new)[-_]?(file|filename|path|dir)\b",               # old_file, new_filename
-    r"\b(source|destination)[-_ ]?(file|directory|dir|path)\b",  # source_file, destination_dir
-    r"\bYOUR[_-]?(FILE|PATH|DIR|BRANCH|REPO)\b",                 # YOUR_FILE, YOUR_PATH
+PLACEHOLDER_PATTERNS = [
+    r"<[^>]+>",
+    r"\b(old|new)[-_]?(file|filename|path|dir)\b",
+    r"\b(source|destination)[-_ ]?(file|directory|dir|path)\b",
+    r"\bYOUR[_-]?(FILE|PATH|DIR|BRANCH|REPO)\b",
 ]
 
 def placeholders(cmd: str) -> bool:
@@ -45,7 +48,7 @@ def shell_command(user_input: str) -> bool:
     first_word = words[0]
     
     all_commands = []
-    for category, commands in shell_commands.items():
+    for commands in shell_commands.items():
         if isinstance(commands, list):
             all_commands.extend(commands)
         elif isinstance(commands, dict):
@@ -112,9 +115,76 @@ def handle_cd(command: str, current_dir: str) -> tuple[bool, str]:
         return True, current_dir
     return True, target
 
+def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
+    """Handle shell command responses."""
+    print(f"\n[cyan]Command:[/cyan] {result.command}")
+    print(f"[yellow]Explanation:[/yellow] {result.explanation}")
+
+    final_cmd = result.command
+    
+    if placeholders(final_cmd):
+        print(f"[yellow]Please edit before execution:[/yellow]")
+        final_cmd = edit_command(final_cmd)
+    else:
+        opt = input("Edit command before executing? [y/N]: ").strip().lower()
+        if opt == "y":
+            final_cmd = edit_command(final_cmd)
+
+    safety_result = CommandSafety().analyse_command(final_cmd)
+    
+    if safety_result.risk_level == RiskLevel.SAFE:
+        print(f"\n[green]Command approved! Executing...[/green]")
+        output, success = run_command(final_cmd, cwd=current_dir)
+        print(output)
+        
+        if success:
+            save_command(final_cmd)
+            return current_dir
+        else:
+            print(f"[red]Command failed to execute[/red]")
+            return current_dir
+    else:   
+        confirm_msg = CommandSafety().get_confirmation_message(safety_result)
+        print(f"\n[bold]{confirm_msg}[/bold]")
+        
+        user_confirm = input("> ").strip()
+        if CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level):
+            print(f"\n[green]Command approved! Executing...[/green]")
+            output, success = run_command(final_cmd, cwd=current_dir)
+            print(output)
+            
+            if success:
+                save_command(final_cmd)
+                return current_dir
+            else:
+                print(f"[red]Command failed to execute[/red]")
+                return current_dir
+        else:
+            print(f"[blue]Command rejected by user[/blue]")
+            return current_dir
+
+def handle_general_response(result: GeneralResponse):
+    """Handle general query responses."""
+    print(f"\n[bold blue]AI Response:[/bold blue]")
+    
+    # Check if content contains markdown
+    if "```" in result.content or "**" in result.content or "##" in result.content:
+        console.print(Markdown(result.content))
+    else:
+        print(result.content)
+    
+    if result.action_required and result.suggested_command:
+        print(f"\n[cyan]Suggested Command:[/cyan] {result.suggested_command}")
+        opt = input("Execute this command? [y/N]: ").strip().lower()
+        if opt == "y":
+            return result.suggested_command
+    
+    return None
+
 def main():
     print("[bold green]AI-Enabled Terminal[/bold green]")
-    print("[dim]Type your request (type 'exit' to quit)[/dim]\n")
+    print("Type your request (type 'exit' to quit)")
+    print("Examples: 'install docker', 'what is Python?', 'write a hello world script'\n")
 
     history = FileHistory(HISTORY_FILE)
     previous_cmds = load_previous_commands()
@@ -152,53 +222,22 @@ def main():
                 continue
 
         try:
-            result: CommandResponse = commands(user_input, current_dir)
+            result = process_request(user_input, current_dir)
             
-            print(f"\n[cyan]Command:[/cyan] {result.command}")
-            print(f"[yellow]Explanation:[/yellow] {result.explanation}")
-
-            final_cmd = result.command
-            
-            if placeholders(final_cmd):
-                print(f"[yellow]Please edit before execution:[/yellow]")
-                final_cmd = edit_command(final_cmd)
-            else:
-                opt = input("Edit command before executing? [y/N]: ").strip().lower()
-                if opt == "y":
-                    final_cmd = edit_command(final_cmd)
-
-            safety_result = CommandSafety().analyse_command(final_cmd)
-            
-            if safety_result.risk_level == RiskLevel.SAFE:
-                print(f"\n[green]Command approved! Executing...[/green]")
-                output, success = run_command(final_cmd, cwd=current_dir)
-                print(output)
-                
-                if success:
-                    save_command(final_cmd)
-                    previous_cmds.append(final_cmd)
-                else:
-                    print(f"[red]Command failed to execute[/red]")
-            else:   
-                confirm_msg = CommandSafety().get_confirmation_message(safety_result)
-                print(f"\n[bold]{confirm_msg}[/bold]")
-                
-                user_confirm = input("> ").strip()
-                if CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level):
-                    print(f"\n[green]Command approved! Executing...[/green]")
-                    output, success = run_command(final_cmd, cwd=current_dir)
+            if isinstance(result, CommandResponse):
+                current_dir = handle_shell_command(result, current_dir)
+            elif isinstance(result, GeneralResponse):
+                suggested_cmd = handle_general_response(result)
+                if suggested_cmd:
+                    output, success = run_command(suggested_cmd, cwd=current_dir)
+                    print(f"\n[green]Executing suggested command...[/green]")
                     print(output)
-                    
                     if success:
-                        save_command(final_cmd)
-                        previous_cmds.append(final_cmd)
-                    else:
-                        print(f"[red]Command failed to execute[/red]")
-                else:
-                    print(f"[blue]Command rejected by user[/blue]")
+                        save_command(suggested_cmd)
+                        previous_cmds.append(suggested_cmd)
 
         except Exception as e:
-            print(f"[red]Error generating suggestion:[/red] {e}")
+            print(f"[red]Error generating response:[/red] {e}")
             print(f"[yellow]Try rephrasing your request[/yellow]")
 
 if __name__ == "__main__":

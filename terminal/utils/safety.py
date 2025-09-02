@@ -117,7 +117,6 @@ class CommandSafety:
         )
 
     def get_confirmation_message(self, safety_result: SafetyResult) -> str:
-        """Generate appropriate confirmation message based on risk level."""
         if safety_result.risk_level == RiskLevel.CRITICAL:
             return "BLOCKED: Command is too dangerous to execute"
         elif safety_result.risk_level == RiskLevel.HIGH:
@@ -130,7 +129,6 @@ class CommandSafety:
             return "Run this command? [y/N]"
 
     def validate_confirmation(self, confirmation: str, risk_level: RiskLevel) -> bool:
-        """Validate user confirmation based on risk level."""
         confirmation = confirmation.strip()
         
         if risk_level == RiskLevel.CRITICAL:
