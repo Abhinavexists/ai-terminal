@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-terminal-cli"
-dynamic = ["version"]
+version = "0.1.5"
 description = "Terminal assistant built as an open source minimal alternative to Warp"
 authors = [{name = "Abhinav", email = "abhinavkumarsingh2023@gmail.com"}]
 readme = "README.md"
@@ -46,5 +46,3 @@ terminal = ["*.py"]
 [tool.setuptools]
 zip-safe = false
 
-[tool.setuptools.dynamic]
-version = {attr = "terminal.__version__"}
