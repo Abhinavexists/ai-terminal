@@ -37,6 +37,7 @@ Repository = "https://github.com/Abhinavexists/ai-terminal.git"
 Issues = "https://github.com/Abhinavexists/ai-terminal/issues"
 
 [tool.setuptools.packages.find]
+where = ["."]
 include = ["terminal*"]
 exclude = ["release*", "scripts*", "ai-terminal-linux*"]
 
