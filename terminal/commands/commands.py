@@ -1,3 +1,31 @@
+import re
+
+def check_shell_command(user_input: str) -> bool:
+    """Check if user input looks like a valid shell command."""
+    input_lower = user_input.lower().strip()
+    words = input_lower.split()
+    
+    if not words:
+        return False
+    
+    first_word = words[0]
+    
+    all_commands = []
+    for commands in shell_commands.items():
+        if isinstance(commands, list):
+            all_commands.extend(commands)
+        elif isinstance(commands, dict):
+            for os_commands in commands.values():
+                all_commands.extend(os_commands)
+    
+    if first_word in all_commands:
+        return True
+    
+    if re.match(r'^[./]', first_word) or re.search(r'[|&;<>]', user_input):
+        return True
+    
+    return False
+
 shell_commands = {
     "file_directory": [
         "ls", "cd", "pwd", "mkdir", "rmdir", "rm", "cp", "mv", "touch", "tree",

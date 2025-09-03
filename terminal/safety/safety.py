@@ -141,4 +141,34 @@ class CommandSafety:
             return confirmation.lower() in ["y", "yes"]
         else:
             return confirmation.lower() in ["y", "yes"]
+
+def check_command_safety(cmd: str) -> bool:
+    safety_result = CommandSafety().analyse_command(cmd)
+    
+    if safety_result.blocked and safety_result.risk_level == RiskLevel.CRITICAL:
+        print(f"[red]{safety_result.warning[0]}[/red]")
+        if safety_result.suggestions:
+            print(f"[yellow]Suggestions:[/yellow]")
+            for suggestion in safety_result.suggestions:
+                print(f"  • {suggestion}")
+        return False
+    
+    if safety_result.warning:
+        print(f"\n[bold yellow]Safety Warning:[/bold yellow]")
+        for warning in safety_result.warning:
+            print(f"[yellow]{warning}[/yellow]")
+        
+        if safety_result.suggestions:
+            print(f"[cyan]Suggestions:[/cyan]")
+            for suggestion in safety_result.suggestions:
+                print(f"  • {suggestion}")
+    
+    if safety_result.risk_level != RiskLevel.SAFE:
+        confirm_msg = CommandSafety().get_confirmation_message(safety_result)
+        print(f"\n[bold]{confirm_msg}[/bold]")
+        
+        user_confirm = input("> ").strip()
+        return CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level)
+    
+    return True
     

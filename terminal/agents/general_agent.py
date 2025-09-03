@@ -1,10 +1,12 @@
-from terminal.utils.gemini import client, generate_config
+from terminal.api import client, generate_config
 from terminal.core.executor import GeneralResponse
 from terminal.utils.parsers import parse_json, parse_response_parts
 from terminal.utils.config import config
 
 def prompt_general():
     return """You are a helpful AI assistant specializing in general knowledge, explanations, and informational responses.
+
+IMPORTANT: Keep your response concise and within token limits. Focus on the most essential information.
 
 Output a JSON object with the following structure:
 
@@ -16,13 +18,14 @@ Output a JSON object with the following structure:
 }}
 
 Instructions:
-- Provide clear, accurate, and comprehensive information
+- Provide clear, accurate, and concise information
 - Use examples and analogies to make complex topics understandable
 - If the user asks about something that could be done with a shell command, set action_required to true and provide suggested_command
 - Be conversational but informative
-- Cite sources or provide additional resources when relevant
+- Keep responses focused and to the point
+- If the response is getting long, prioritize the most important information
 
-Ensure your response is ONLY the JSON object, with no extra text or formatting."""
+CRITICAL: Your response must be ONLY the JSON object, with no extra text, markdown formatting, or code blocks outside the JSON."""
 
 
 
@@ -48,5 +51,19 @@ def process_general_request(user_input: str, context: str = "") -> GeneralRespon
                 data = parse_json(part.text)
                 if data and "content" in data:
                     return GeneralResponse(**data)
+                
+                raw_text = part.text.strip()
+                if raw_text and len(raw_text) > 10:  
+                    return GeneralResponse(
+                        content=raw_text,
+                        response_type="general_query",
+                        action_required=False,
+                        suggested_command=None
+                    )
 
-    raise ValueError(f"Failed to get general query response: {response}")
+    return GeneralResponse(
+        content=f"I apologize, but I encountered an issue generating a proper response for your request: '{user_input}'. Please try rephrasing your question or breaking it into smaller parts.",
+        response_type="general_query",
+        action_required=False,
+        suggested_command=None
+    )

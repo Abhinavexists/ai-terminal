@@ -1,4 +1,4 @@
-from terminal.utils.gemini import client, generate_config
+from terminal.api import client, generate_config
 from terminal.utils.parsers import parse_json, parse_response_parts
 from terminal.utils.config import config
 
