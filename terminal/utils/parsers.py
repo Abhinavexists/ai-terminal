@@ -13,10 +13,36 @@ def parse_json(text: str) -> dict | None:
     if not json_match:
         return None
 
+    json_text = json_match.group()
+    
     try:
-        return json.loads(json_match.group())
+        return json.loads(json_text)
     except json.JSONDecodeError:
-        return None
+        try:
+            # Handle truncated JSON by trying to close it properly
+            if json_text.count('{') > json_text.count('}'):
+                missing_braces = json_text.count('{') - json_text.count('}')
+                json_text += '}' * missing_braces
+            
+            if json_text.count('"') % 2 != 0:
+                last_quote = json_text.rfind('"')
+                if last_quote > json_text.rfind(':'):
+                    json_text = json_text[:last_quote + 1] + '"'
+            
+            return json.loads(json_text)
+        except json.JSONDecodeError:
+            try:
+                content_match = re.search(r'"content"\s*:\s*"([^"]*(?:\\.[^"]*)*)"', json_text, re.DOTALL)
+                if content_match:
+                    return {
+                        "content": content_match.group(1),
+                        "response_type": "code_generation",
+                        "action_required": False,
+                        "suggested_command": None
+                    }
+            except:
+                pass
+            return None
 
 def parse_response_parts(parts) -> dict | None:
     full_text = ""

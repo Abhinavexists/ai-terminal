@@ -2,8 +2,9 @@ import os
 import re
 from terminal.core.executor import CommandResponse, GeneralResponse, run_command
 from terminal.core.agent import process_request
-from terminal.utils.safety import CommandSafety, RiskLevel
-from terminal.utils.commands import shell_commands
+from terminal.safety import check_command_safety
+from terminal.commands import check_shell_command
+from terminal.utils.loading import LoadingAnimation
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter
@@ -37,31 +38,6 @@ def placeholders(cmd: str) -> bool:
             return True
     return False
 
-def shell_command(user_input: str) -> bool:
-    """Check if user input looks like a valid shell command."""
-    input_lower = user_input.lower().strip()
-    words = input_lower.split()
-    
-    if not words:
-        return False
-    
-    first_word = words[0]
-    
-    all_commands = []
-    for commands in shell_commands.items():
-        if isinstance(commands, list):
-            all_commands.extend(commands)
-        elif isinstance(commands, dict):
-            for os_commands in commands.values():
-                all_commands.extend(os_commands)
-    
-    if first_word in all_commands:
-        return True
-    
-    if re.match(r'^[./]', first_word) or re.search(r'[|&;<>]', user_input):
-        return True
-    
-    return False
 
 def edit_command(suggested: str) -> str:
     print(f"[cyan]Current command:[/cyan] {suggested}")
@@ -69,36 +45,6 @@ def edit_command(suggested: str) -> str:
     edited = input("> ").strip()
     return edited if edited else suggested
 
-def check_command_safety(cmd: str) -> bool:
-    """Check if a command is safe to execute and get user confirmation if needed."""
-    safety_result = CommandSafety().analyse_command(cmd)
-    
-    if safety_result.blocked and safety_result.risk_level == RiskLevel.CRITICAL:
-        print(f"[red]{safety_result.warning[0]}[/red]")
-        if safety_result.suggestions:
-            print(f"[yellow]Suggestions:[/yellow]")
-            for suggestion in safety_result.suggestions:
-                print(f"  • {suggestion}")
-        return False
-    
-    if safety_result.warning:
-        print(f"\n[bold yellow]Safety Warning:[/bold yellow]")
-        for warning in safety_result.warning:
-            print(f"[yellow]{warning}[/yellow]")
-        
-        if safety_result.suggestions:
-            print(f"[cyan]Suggestions:[/cyan]")
-            for suggestion in safety_result.suggestions:
-                print(f"  • {suggestion}")
-    
-    if safety_result.risk_level != RiskLevel.SAFE:
-        confirm_msg = CommandSafety().get_confirmation_message(safety_result)
-        print(f"\n[bold]{confirm_msg}[/bold]")
-        
-        user_confirm = input("> ").strip()
-        return CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level)
-    
-    return True
 
 def handle_cd(command: str, current_dir: str) -> tuple[bool, str]:
     parts = command.strip().split()
@@ -130,9 +76,7 @@ def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
         if opt == "y":
             final_cmd = edit_command(final_cmd)
 
-    safety_result = CommandSafety().analyse_command(final_cmd)
-    
-    if safety_result.risk_level == RiskLevel.SAFE:
+    if check_command_safety(final_cmd):
         print(f"\n[green]Command approved! Executing...[/green]")
         output, success = run_command(final_cmd, cwd=current_dir)
         print(output)
@@ -143,31 +87,14 @@ def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
         else:
             print(f"[red]Command failed to execute[/red]")
             return current_dir
-    else:   
-        confirm_msg = CommandSafety().get_confirmation_message(safety_result)
-        print(f"\n[bold]{confirm_msg}[/bold]")
-        
-        user_confirm = input("> ").strip()
-        if CommandSafety().validate_confirmation(user_confirm, safety_result.risk_level):
-            print(f"\n[green]Command approved! Executing...[/green]")
-            output, success = run_command(final_cmd, cwd=current_dir)
-            print(output)
-            
-            if success:
-                save_command(final_cmd)
-                return current_dir
-            else:
-                print(f"[red]Command failed to execute[/red]")
-                return current_dir
-        else:
-            print(f"[blue]Command rejected by user[/blue]")
-            return current_dir
+    else:
+        print(f"[blue]Command rejected by user[/blue]")
+        return current_dir
 
 def handle_general_response(result: GeneralResponse):
     """Handle general query responses."""
     print(f"\n[bold blue]AI Response:[/bold blue]")
     
-    # Check if content contains markdown
     if "```" in result.content or "**" in result.content or "##" in result.content:
         console.print(Markdown(result.content))
     else:
@@ -212,7 +139,7 @@ def main():
         if handled:
             continue
 
-        if shell_command(user_input):
+        if check_shell_command(user_input):
             output, success = run_command(user_input, cwd=current_dir)
             
             if success:
@@ -222,7 +149,13 @@ def main():
                 continue
 
         try:
-            result = process_request(user_input, current_dir)
+            loading_animation = LoadingAnimation("Thinking")
+            loading_animation.start()
+            
+            try:
+                result = process_request(user_input, current_dir)
+            finally:
+                loading_animation.stop()
             
             if isinstance(result, CommandResponse):
                 current_dir = handle_shell_command(result, current_dir)

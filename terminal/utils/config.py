@@ -10,7 +10,7 @@ class Config:
         self.default_config = {
             "gemini_api_key": None,
             "model": "gemini-2.5-flash",
-            "max_tokens": 1000,
+            "max_tokens": 4000,
             "temperature": 0.7,
             "safety_settings": {
                 "harassment": "BLOCK_MEDIUM_AND_ABOVE",
@@ -73,7 +73,7 @@ class Config:
         config = self.load_config()
         return {
             "model": config.get("model", "gemini-2.5-flash"),
-            "max_tokens": config.get("max_tokens", 1000),
+            "max_tokens": config.get("max_tokens", 4000),
             "temperature": config.get("temperature", 0.7),
             "safety_settings": config.get("safety_settings", self.default_config["safety_settings"])
         }

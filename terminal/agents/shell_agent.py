@@ -1,7 +1,7 @@
-from terminal.utils.gemini import client, generate_config
+from terminal.api import client, generate_config
 from terminal.utils.config import config
 from terminal.core.executor import CommandResponse
-from terminal.utils.os_info import operating_system
+from terminal.commands import operating_system
 from terminal.utils.parsers import parse_json
 
 def prompt_shell():
