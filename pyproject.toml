@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-terminal-cli"
-version = "0.1.6"
+name = "dwarp"
+version = "0.1.7"
 description = "Terminal assistant built as an open source minimal alternative to Warp"
 authors = [{name = "Abhinav", email = "abhinavkumarsingh2023@gmail.com"}]
 readme = "README.md"
@@ -29,12 +29,12 @@ dependencies = [
 ]
 
 [project.scripts]
-ai-terminal = "terminal.cli:main"
+dwarp = "terminal.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Abhinavexists/ai-terminal"
-Repository = "https://github.com/Abhinavexists/ai-terminal.git"
-Issues = "https://github.com/Abhinavexists/ai-terminal/issues"
+Homepage = "https://github.com/Abhinavexists/dwarp"
+Repository = "https://github.com/Abhinavexists/dwarp.git"
+Issues = "https://github.com/Abhinavexists/dwarp/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

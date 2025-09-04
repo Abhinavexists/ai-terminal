@@ -1,19 +1,24 @@
 import os
 import re
+
 from terminal.core.executor import CommandResponse, GeneralResponse, run_command
 from terminal.core.agent import process_request
 from terminal.safety import check_command_safety
 from terminal.commands import check_shell_command
 from terminal.utils.loading import LoadingAnimation
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter
+
 from rich import print
 from rich.console import Console
 from rich.markdown import Markdown
 
+
 console = Console()
 HISTORY_FILE = os.path.expanduser("~/.terminal_history")
+
 
 def load_previous_commands():
     if not os.path.exists(HISTORY_FILE):
@@ -21,9 +26,11 @@ def load_previous_commands():
     with open(HISTORY_FILE, "r") as file:
         return list(set([line.strip() for line in file if line.strip()]))
 
+
 def save_command(cmd: str):
     with open(HISTORY_FILE, "a") as file:
         file.write(cmd + "\n")
+
 
 PLACEHOLDER_PATTERNS = [
     r"<[^>]+>",
@@ -31,6 +38,7 @@ PLACEHOLDER_PATTERNS = [
     r"\b(source|destination)[-_ ]?(file|directory|dir|path)\b",
     r"\bYOUR[_-]?(FILE|PATH|DIR|BRANCH|REPO)\b",
 ]
+
 
 def placeholders(cmd: str) -> bool:
     for pat in PLACEHOLDER_PATTERNS:
@@ -53,13 +61,16 @@ def handle_cd(command: str, current_dir: str) -> tuple[bool, str]:
 
     target = parts[1] if len(parts) > 1 else os.path.expanduser("~")
     target = os.path.expanduser(target)
-    
+
     if not os.path.isabs(target):
         target = os.path.normpath(os.path.join(current_dir, target))
+
     if not os.path.isdir(target):
         print(f"[red]cd: no such directory: {target}[/red]")
         return True, current_dir
+
     return True, target
+
 
 def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
     """Handle shell command responses."""
@@ -67,7 +78,12 @@ def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
     print(f"[yellow]Explanation:[/yellow] {result.explanation}")
 
     final_cmd = result.command
-    
+
+    # Special-case clear/cls to avoid printing raw ANSI sequences
+    if final_cmd.strip().lower() in {"clear", "cls"}:
+        console.clear()
+        return current_dir
+
     if placeholders(final_cmd):
         print(f"[yellow]Please edit before execution:[/yellow]")
         final_cmd = edit_command(final_cmd)
@@ -80,33 +96,32 @@ def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
         print(f"\n[green]Command approved! Executing...[/green]")
         output, success = run_command(final_cmd, cwd=current_dir)
         print(output)
-        
         if success:
             save_command(final_cmd)
-            return current_dir
         else:
             print(f"[red]Command failed to execute[/red]")
-            return current_dir
+        return current_dir
     else:
         print(f"[blue]Command rejected by user[/blue]")
         return current_dir
 
+
 def handle_general_response(result: GeneralResponse):
     """Handle general query responses."""
-    print(f"\n[bold blue]AI Response:[/bold blue]")
-    
+    print(f"\n[bold blue]Response:[/bold blue]")
+
     if "```" in result.content or "**" in result.content or "##" in result.content:
         console.print(Markdown(result.content))
     else:
         print(result.content)
-    
+
     if result.action_required and result.suggested_command:
         print(f"\n[cyan]Suggested Command:[/cyan] {result.suggested_command}")
         opt = input("Execute this command? [y/N]: ").strip().lower()
         if opt == "y":
             return result.suggested_command
-    
     return None
+
 
 def main():
     print("[bold green]AI-Enabled Terminal[/bold green]")
@@ -139,24 +154,29 @@ def main():
         if handled:
             continue
 
+        # Special-case clear/cls entered directly by the user
+        if user_input.strip().lower() in {"clear", "cls"}:
+            console.clear()
+            previous_cmds.append(user_input)
+            save_command(user_input)
+            continue
+
         if check_shell_command(user_input):
             output, success = run_command(user_input, cwd=current_dir)
-            
             if success:
                 print(output)
                 save_command(user_input)
                 previous_cmds.append(user_input)
-                continue
+            continue
 
         try:
             loading_animation = LoadingAnimation("Thinking")
             loading_animation.start()
-            
             try:
                 result = process_request(user_input, current_dir)
             finally:
                 loading_animation.stop()
-            
+
             if isinstance(result, CommandResponse):
                 current_dir = handle_shell_command(result, current_dir)
             elif isinstance(result, GeneralResponse):
@@ -172,6 +192,7 @@ def main():
         except Exception as e:
             print(f"[red]Error generating response:[/red] {e}")
             print(f"[yellow]Try rephrasing your request[/yellow]")
+
 
 if __name__ == "__main__":
     main()

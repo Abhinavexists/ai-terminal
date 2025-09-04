@@ -2,6 +2,7 @@ import re
 from typing import List, Optional
 from dataclasses import dataclass
 from enum import Enum
+from rich import print
 
 class RiskLevel(Enum):
     SAFE = 'safe'

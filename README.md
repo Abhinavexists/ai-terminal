@@ -1,10 +1,10 @@
-# AI-Terminal
+# Dwarp
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://github.com/your-username/ai-enabled-terminal)
 
-Terminal assistant which is built as an open source minimal alternative to warp.
+Terminal assistant built as an open source minimal alternative to Warp.
 
 ## Quick Start
 
@@ -18,19 +18,19 @@ Terminal assistant which is built as an open source minimal alternative to warp.
 
 #### Option 1: Binary Release (Recommended)
 
-1. Download the latest release from [Releases](https://github.com/your-username/ai-enabled-terminal/releases)
+1. Download the latest release from [Releases](https://github.com/Abhinavexists/dwarp/releases)
 2. Extract and install:
 
    ```bash
-   tar -xzf ai-terminal-linux.tar.gz
-   cd ai-terminal-linux
+   tar -xzf dwarp-linux.tar.gz
+   cd dwarp-linux
    sudo ./install.sh
    ```
 
 3. Launch the terminal:
 
    ```bash
-   ai-terminal
+   dwarp
    ```
 
 4. Enter your Gemini API key when prompted
@@ -40,8 +40,8 @@ Terminal assistant which is built as an open source minimal alternative to warp.
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/Abhinavexists/ai-terminal.git
-   cd ai-enabled-terminal
+   git clone https://github.com/Abhinavexists/dwarp.git
+   cd dwarp
    ```
 
 2. Create and activate virtual environment:

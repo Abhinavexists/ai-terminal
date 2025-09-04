@@ -11,14 +11,14 @@ def check_shell_command(user_input: str) -> bool:
     first_word = words[0]
     
     all_commands = []
-    for commands in shell_commands.items():
-        if isinstance(commands, list):
-            all_commands.extend(commands)
-        elif isinstance(commands, dict):
-            for os_commands in commands.values():
+    for group in shell_commands.values():
+        if isinstance(group, list):
+            all_commands.extend(group)
+        elif isinstance(group, dict):
+            for os_commands in group.values():
                 all_commands.extend(os_commands)
     
-    if first_word in all_commands:
+    if first_word in set(all_commands):
         return True
     
     if re.match(r'^[./]', first_word) or re.search(r'[|&;<>]', user_input):
