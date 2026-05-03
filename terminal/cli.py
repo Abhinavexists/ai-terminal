@@ -17,6 +17,8 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.completion import FuzzyWordCompleter
 
+from terminal.theme import Theme, get_theme  # Import Theme explicitly
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -27,9 +29,9 @@ def parse_args():
     parser.add_argument("--config", metavar="PATH", help="path to config file")
     parser.add_argument("--model", metavar="NAME", help="override model from config")
     parser.add_argument("--verbose", action="store_true", help="enable debug logging")
+    parser.add_argument("--theme", metavar="NAME", help="Theme (catppuccin-latte, catppuccin-frappe, catppuccin-macchiato, catppuccin-mocha, dracula)")
     return parser.parse_args()
 
-console = Console()
 
 HISTORY_FILE = os.path.expanduser("~/.dwarp_history")
 
@@ -61,14 +63,16 @@ def placeholders(cmd: str) -> bool:
     return False
 
 
-def edit_command(suggested: str) -> str:
-    print(f"[cyan]Current command:[/cyan] {suggested}")
-    print("[magenta]Edit the command (press Enter to keep as is):[/magenta]")
+def edit_command(suggested: str, theme: Theme) -> str:
+    """Edit a command with theme support."""
+    print(f"[{theme.info_style}]Current command:[/{theme.info_style}] {suggested}")
+    print(f"[{theme.warning_style}]Edit the command (press Enter to keep as is):[/{theme.warning_style}]")
     edited = input("> ").strip()
     return edited if edited else suggested
 
 
-def handle_cd(command: str, current_dir: str) -> tuple[bool, str]:
+def handle_cd(command: str, current_dir: str, theme: Theme) -> tuple[bool, str]:
+    """Handle cd command with theme support."""
     parts = command.strip().split()
     if not parts or parts[0] != "cd":
         return False, current_dir
@@ -80,16 +84,16 @@ def handle_cd(command: str, current_dir: str) -> tuple[bool, str]:
         target = os.path.normpath(os.path.join(current_dir, target))
 
     if not os.path.isdir(target):
-        print(f"[red]cd: no such directory: {target}[/red]")
+        print(f"[{theme.error_style}]cd: no such directory: {target}[/{theme.error_style}]")
         return True, current_dir
 
     return True, target
 
 
-def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
+def handle_shell_command(result: CommandResponse, current_dir: str, theme: Theme, console: Console, previous_cmds: list) -> str:
     """Handle shell command responses."""
-    print(f"\n[cyan]Command:[/cyan] {result.command}")
-    print(f"[yellow]Explanation:[/yellow] {result.explanation}")
+    print(f"\n[{theme.info_style}]Command:[/{theme.info_style}] {result.command}")
+    print(f"[{theme.response_style}]Explanation:[/{theme.response_style}] {result.explanation}")
 
     final_cmd = result.command
 
@@ -99,38 +103,41 @@ def handle_shell_command(result: CommandResponse, current_dir: str) -> str:
         return current_dir
 
     if placeholders(final_cmd):
-        print("[yellow]Please edit before execution:[/yellow]")
-        final_cmd = edit_command(final_cmd)
+        print(f"[{theme.warning_style}]Please edit before execution:[/{theme.warning_style}]")
+        final_cmd = edit_command(final_cmd, theme)
     else:
-        opt = input("Edit command before executing? [y/N]: ").strip().lower()
+        opt = input("Edit command before executing? [y/N]: ").strip().lower()  # Fixed f-string
         if opt == "y":
-            final_cmd = edit_command(final_cmd)
+            final_cmd = edit_command(final_cmd, theme)
 
     if check_command_safety(final_cmd):
-        print("\n[green]Command approved! Executing...[/green]")
+        print(f"\n[{theme.success_style}]Command approved! Executing...[/{theme.success_style}]")
         output, success = run_command(final_cmd, cwd=current_dir)
         print(output)
         if success:
             save_command(final_cmd)
+            previous_cmds.append(final_cmd)
         else:
-            print("[red]Command failed to execute[/red]")
+            print(f"[{theme.error_style}]Command failed to execute[/{theme.error_style}]")
         return current_dir
     else:
-        print("[blue]Command rejected by user[/blue]")
+        print(f"[{theme.info_style}]Command rejected by user[/{theme.info_style}]")
         return current_dir
 
 
-def handle_general_response(result: GeneralResponse):
+def handle_general_response(result: GeneralResponse, theme: Theme, console: Console = None) -> str | None:
     """Handle general query responses."""
-    print("\n[bold blue]Response:[/bold blue]")
-
+    print(f"\n[{theme.info_style}]Response:[/{theme.info_style}]")
+    
     if "```" in result.content or "**" in result.content or "##" in result.content:
+        if console is None:
+            console = Console()
         console.print(Markdown(result.content))
     else:
         print(result.content)
 
     if result.action_required and result.suggested_command:
-        print(f"\n[cyan]Suggested Command:[/cyan] {result.suggested_command}")
+        print(f"\n[{theme.info_style}]Suggested Command:[/{theme.info_style}] {result.suggested_command}")
         opt = input("Execute this command? [y/N]: ").strip().lower()
         if opt == "y":
             return result.suggested_command
@@ -140,13 +147,20 @@ def handle_general_response(result: GeneralResponse):
 def main():
     args = parse_args()
 
+    # Get theme first
+    theme = get_theme(args.theme)
+    
+    # Create console
+    console = Console()
+
+    # Import config after theme is set (to avoid circular imports)
     from terminal.utils import config as config_module
     if args.config:
         config_module.config = config_module.Config(config_file=args.config)
     if args.model:
         config_module.config.model_override = args.model
 
-    print("[bold green]dwarp[/bold green]")
+    print(f"[{theme.success_style}]dwarp[/{theme.success_style}]")
     print("Type your request (type 'exit' to quit)")
     print("Examples: 'install docker', 'what is Python?', 'write a hello world script'\n")
 
@@ -159,9 +173,11 @@ def main():
     while True:
         completer = FuzzyWordCompleter(previous_cmds)
         try:
-            user_input = session.prompt(f"{current_dir} > ", completer=completer).strip()
+            # Use theme for prompt
+            user_input = session.prompt(f"[{theme.prompt_style}]{current_dir}[/{theme.prompt_style}] > ", 
+                                       completer=completer).strip()
         except KeyboardInterrupt:
-            print("\n[blue]Use 'exit' to quit[/blue]")
+            print(f"\n[{theme.info_style}]Use 'exit' to quit[/{theme.info_style}]")
             continue
         except EOFError:
             break
@@ -172,7 +188,7 @@ def main():
         if not user_input:
             continue
 
-        handled, current_dir = handle_cd(user_input, current_dir)
+        handled, current_dir = handle_cd(user_input, current_dir, theme)
         if handled:
             continue
 
@@ -200,20 +216,20 @@ def main():
                 loading_animation.stop()
 
             if isinstance(result, CommandResponse):
-                current_dir = handle_shell_command(result, current_dir)
+                current_dir = handle_shell_command(result, current_dir, theme, console, previous_cmds)
             elif isinstance(result, GeneralResponse):
-                suggested_cmd = handle_general_response(result)
+                suggested_cmd = handle_general_response(result, theme, console)
                 if suggested_cmd:
                     output, success = run_command(suggested_cmd, cwd=current_dir)
-                    print("\n[green]Executing suggested command...[/green]")
+                    print(f"\n[{theme.success_style}]Executing suggested command...[/{theme.success_style}]")
                     print(output)
                     if success:
                         save_command(suggested_cmd)
                         previous_cmds.append(suggested_cmd)
 
         except Exception as e:
-            print(f"[red]Error generating response:[/red] {e}")
-            print("[yellow]Try rephrasing your request[/yellow]")
+            print(f"[{theme.error_style}]Error generating response:[/{theme.error_style}] {e}")
+            print(f"[{theme.warning_style}]Try rephrasing your request[/{theme.warning_style}]")
 
 
 if __name__ == "__main__":
